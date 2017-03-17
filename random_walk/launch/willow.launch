@@ -1,0 +1,11 @@
+<launch> 
+    <param name="/use_sim_time" value="true" />   
+    
+    <!-- Launch turtle bot world -->
+    <include file="$(find turtlebot_gazebo)/launch/turtlebot_world.launch">
+      <arg name="world_file" value="worlds/willowgarage.world"/>
+    </include>
+ 
+    <!-- Launch stopper node -->
+    <node name="random_walk" pkg="random_walk" type="random_walk" output="screen"/>
+</launch>
