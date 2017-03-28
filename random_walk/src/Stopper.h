@@ -14,8 +14,8 @@ class Stopper {
 public:
     // Tunable parameters
   
-  const static double MIN_SCAN_ANGLE = -60.0/180*M_PI;
-  const static double MAX_SCAN_ANGLE = +60.0/180*M_PI;
+  const static double MIN_SCAN_ANGLE = -30.0/180*M_PI;
+  const static double MAX_SCAN_ANGLE = +30.0/180*M_PI;
 
   Stopper();
   Stopper(double dist);
@@ -36,7 +36,7 @@ private:
 
   //Para controlar que no se atasque
   int contador_rotaciones;
-
+  int direccion = 0;
   //Parametros que controlan el movimiento del robot
   double FORWARD_SPEED;
   double ANGULAR_SPEED;

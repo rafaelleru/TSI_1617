@@ -13,15 +13,15 @@ Stopper::Stopper()
 
   this->FORWARD_SPEED = 0.3;
   this->ANGULAR_SPEED = 0.5;
-  this->MIN_DIST_FROM_OBSTACLE = 0.8;
-    keepMoving = true;
+  keepMoving = true;
 
     // Advertise a new publisher for the robot's velocity command topic
-    commandPub = node.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/teleop", 10);
+  commandPub = node.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/teleop", 10);
 
     // Subscribe to the simulated robot's laser scan topic
-    laserSub = node.subscribe("scan", 1, &Stopper::scanCallback, this);
-    this->contador_rotaciones = 0;
+  laserSub = node.subscribe("scan", 1, &Stopper::scanCallback, this);
+  this->contador_rotaciones = 0;
+  node.getParam("min_dist", this->MIN_DIST_FROM_OBSTACLE);
 }
 
 Stopper::Stopper(double dist){
@@ -54,9 +54,9 @@ void Stopper::rotate(int direccion) {
   double ang_spd;
   this->contador_rotaciones++;
   
-  if(direccion == 0) //Izquierda 
+  if(direccion == 0) //derecha
     ang_spd = -1 * ANGULAR_SPEED;
-  else //Derecha
+  else //izquierda
     ang_spd = ANGULAR_SPEED;
 
   //Envio del mensage
@@ -78,47 +78,38 @@ void Stopper::rotate() {
 // Process the incoming laser scan message
 void Stopper::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 {
-	bool isObstacleInFront = false;
-	int obstacleIndex = 0;
-	int max_dist = 0;
-	int indice_mas_lejano;
-    // Find the closest range between the defined minimum and maximum angles
-    int minIndex = ceil((MIN_SCAN_ANGLE - scan->angle_min) / scan->angle_increment);
-    int maxIndex = floor((MAX_SCAN_ANGLE - scan->angle_min) / scan->angle_increment);
-    for (int currIndex = minIndex + 1; currIndex <= maxIndex; currIndex++) {
+  bool isObstacleInFront = false;
+  int max_dist = 0;
+  int indice_mas_lejano;
+  // Find the closest range between the defined minimum and maximum angles
+  int minIndex = ceil((MIN_SCAN_ANGLE - scan->angle_min) / scan->angle_increment);
+  int maxIndex = floor((MAX_SCAN_ANGLE - scan->angle_min) / scan->angle_increment);
 
-      if(max_dist < scan->ranges[currIndex]){
-	max_dist = scan->ranges[currIndex];
-	indice_mas_lejano = currIndex;
-      }
-      
-      if (scan->ranges[currIndex] < MIN_DIST_FROM_OBSTACLE && !isObstacleInFront) {
-	isObstacleInFront = true;
-	obstacleIndex = currIndex;
-	ROS_INFO("He visto un obstaculo");
-      }
-
-    }
-
-    if (isObstacleInFront) {
-      ROS_INFO("Stop!");
+  keepMoving = true;
+  
+  for (int currIndex = minIndex + 1; currIndex <= maxIndex; currIndex++) {
+    if( scan->ranges[currIndex] < MIN_DIST_FROM_OBSTACLE){
       keepMoving = false;
-      int mitad = (minIndex+1 + maxIndex)/2;
-      //Se supone que ocn esto evita los obsttaculos mas inteligentemente pero no funciona bien
-      if (this->contador_rotaciones == 50){
-	//this->contador_rotaciones = 0;
-	rotate();
-      } else if (indice_mas_lejano < mitad) {
-	ROS_INFO("como el obstaculo esta a la izquierda giro a la derecha");
-	  rotate(1);
-      } else {
-	  ROS_INFO("como el obstaculo esta a la derecha giro a la izquierda");
-	  rotate(0);
-      }
-    } else {
-      keepMoving = true;
-      this->contador_rotaciones = 0;
     }
+
+    if( scan->ranges[currIndex] > max_dist){
+      indice_mas_lejano = currIndex;
+    }
+  }
+
+  if(!keepMoving){
+    int izq = (minIndex+1+maxIndex)/3;
+    int centro = izq+izq;
+
+    if(indice_mas_lejano < izq){
+      direccion = -1;
+    } else if (indice_mas_lejano < centro){
+      keepMoving = true;
+    } else {
+      direccion = 1;
+    }
+  }
+
 }
 
 void Stopper::startMoving()
@@ -128,14 +119,18 @@ void Stopper::startMoving()
 
     // Keep spinning loop until user presses Ctrl+C or the robot got too close to an obstacle
     while (ros::ok()) {
-      if (!keepMoving) {
-	/*if(this->contador_rotaciones == 100){
-	  ROS_INFO("Como me he atascado giro a la izquierda a ver que pasa");
-	  //this->contador_rotaciones = 0;
+      if(keepMoving){
+	moveForward();
+      }else{
+	switch (direccion) {
+	case -1: {
 	  rotate();
-	  }*/
-      } else {
-        moveForward();
+	  break;
+	}
+	case 1: {
+	  rotate(0);
+	}
+	}
       }
       
       ros::spinOnce(); // Need to call this function often to allow ROS to process incoming messages

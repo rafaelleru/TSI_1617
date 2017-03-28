@@ -6,4 +6,5 @@
  
     <!-- Launch stopper node -->
     <node name="random_walk" pkg="random_walk" type="random_walk" output="screen"/>
+    <param name="min_dist" value="0.7" />		
 </launch>
